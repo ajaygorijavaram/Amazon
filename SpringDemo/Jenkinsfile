@@ -1,0 +1,13 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Build SpringDemo') {
+            steps {
+                dir('SpringDemo') {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+    }
+}
