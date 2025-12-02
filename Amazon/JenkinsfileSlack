@@ -12,7 +12,6 @@ pipeline {
             steps {
                 dir('Amazon') {
                     sh 'mvn clean'
-                    sh "exit 1"
 
                 }
             }
