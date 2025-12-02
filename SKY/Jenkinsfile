@@ -1,0 +1,13 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Build SKY') {
+            steps {
+                dir('SKY') {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+    }
+}
