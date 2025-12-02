@@ -10,45 +10,53 @@ pipeline {
 
         stage('Clean') {
             steps {
-                sh 'mvn clean'
+                dir('Amazon') {
+                    sh 'mvn clean'
+                }
             }
         }
 
         stage('Compile') {
             steps {
-                sh 'mvn compile'
+                dir('Amazon') {
+                    sh 'mvn compile'
+                }
             }
         }
 
         stage('Test') {
             steps {
-                sh 'mvn test'
+                dir('Amazon') {
+                    sh 'mvn test'
+                }
             }
         }
 
         stage('Build') {
             steps {
-                sh 'mvn clean install -DskipTests'
+                dir('Amazon') {
+                    sh 'mvn clean install -DskipTests'
+                }
             }
         }
     }
 
     post {
         success {
-            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_HOOK')]) {
+            withCredentials([string(credentialsId: 'webhoook', variable: 'SLACK_HOOK')]) {
                 sh '''
                 curl -X POST -H "Content-type: application/json" \
-                --data "{\\"text\\": \\"SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER} ✔️\\nURL: ${BUILD_URL}\\"}" \
+                --data "{\\"text\\": \\"SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER} ✔️\nURL: ${BUILD_URL}\\"}" \
                 "$SLACK_HOOK"
                 '''
             }
         }
 
         failure {
-            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_HOOK')]) {
+            withCredentials([string(credentialsId: 'webhoook', variable: 'SLACK_HOOK')]) {
                 sh '''
                 curl -X POST -H "Content-type: application/json" \
-                --data "{\\"text\\": \\"FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER} ❌\\nURL: ${BUILD_URL}\\"}" \
+                --data "{\\"text\\": \\"FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER} ❌\nURL: ${BUILD_URL}\\"}" \
                 "$SLACK_HOOK"
                 '''
             }
