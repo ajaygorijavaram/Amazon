@@ -28,26 +28,30 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean install'
+                sh 'mvn clean install -DskipTests'
             }
         }
     }
 
     post {
         success {
-            sh '''
-curl -X POST -H "Content-type: application/json" \
---data "{\\"text\\": \\"SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER}\\"}" \
-https://hooks.slack.com/services/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
-'''
+            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_HOOK')]) {
+                sh '''
+                curl -X POST -H "Content-type: application/json" \
+                --data "{\\"text\\": \\"SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER} ✔️\\nURL: ${BUILD_URL}\\"}" \
+                "$SLACK_HOOK"
+                '''
+            }
         }
 
         failure {
-            sh '''
-curl -X POST -H "Content-type: application/json" \
---data "{\\"text\\": \\"FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER}\\"}" \
-https://hooks.slack.com/services/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
-'''
+            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_HOOK')]) {
+                sh '''
+                curl -X POST -H "Content-type: application/json" \
+                --data "{\\"text\\": \\"FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER} ❌\\nURL: ${BUILD_URL}\\"}" \
+                "$SLACK_HOOK"
+                '''
+            }
         }
     }
 }
