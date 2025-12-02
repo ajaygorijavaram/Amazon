@@ -2,6 +2,30 @@ pipeline {
     agent any
 
     stages {
+        stage('Clone Project') {
+            steps {
+                git branch: 'master', url: 'https://github.com/ajaygorijavaram/Amazon.git'
+            }
+        }
+
+        stage('Clean') {
+            steps {
+                sh 'mvn clean'
+            }
+        }
+
+        stage('Compile') {
+            steps {
+                sh 'mvn compile'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+
         stage('Build') {
             steps {
                 sh 'mvn clean install'
@@ -12,16 +36,17 @@ pipeline {
     post {
         success {
             sh '''
-curl -X POST -H 'Content-type: application/json' \
---data '{"text": "SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER}"}' \
-https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
+curl -X POST -H "Content-type: application/json" \
+--data "{\\"text\\": \\"SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER}\\"}" \
+https://hooks.slack.com/services/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
 '''
         }
+
         failure {
             sh '''
-curl -X POST -H 'Content-type: application/json' \
---data '{"text": "FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER}"}' \
-https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
+curl -X POST -H "Content-type: application/json" \
+--data "{\\"text\\": \\"FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER}\\"}" \
+https://hooks.slack.com/services/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
 '''
         }
     }
