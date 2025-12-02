@@ -43,20 +43,20 @@ pipeline {
 
     post {
         success {
-            withCredentials([string(credentialsId: 'webhoook', variable: 'SLACK_HOOK')]) {
+            withCredentials([string(credentialsId: 'slack-webhoook', variable: 'SLACK_HOOK')]) {
                 sh '''
                 curl -X POST -H "Content-type: application/json" \
-                --data "{\\"text\\": \\"SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER} ✔️\nURL: ${BUILD_URL}\\"}" \
+                --data "{\\"text\\": \\"SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER} ✔️\\nURL: ${BUILD_URL}\\"}" \
                 "$SLACK_HOOK"
                 '''
             }
         }
 
         failure {
-            withCredentials([string(credentialsId: 'webhoook', variable: 'SLACK_HOOK')]) {
+            withCredentials([string(credentialsId: 'slack-webhoook', variable: 'SLACK_HOOK')]) {
                 sh '''
                 curl -X POST -H "Content-type: application/json" \
-                --data "{\\"text\\": \\"FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER} ❌\nURL: ${BUILD_URL}\\"}" \
+                --data "{\\"text\\": \\"FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER} ❌\\nURL: ${BUILD_URL}\\"}" \
                 "$SLACK_HOOK"
                 '''
             }
