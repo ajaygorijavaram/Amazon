@@ -2,54 +2,27 @@ pipeline {
     agent any
 
     stages {
-        stage('Clone Project') {
-            steps {
-                git branch: 'master', url: 'https://github.com/ajaygorijavaram/Amazon.git'
-            }
-        }
-
-        stage('Clean') {
-            steps {
-                dir('Amazon') {
-                    sh 'mvn clean'
-                }
-            }
-        }
-
-        stage('Compile') {
-            steps {
-                dir('Amazon') {
-                    sh 'mvn compile'
-                }
-            }
-        }
-
-        stage('Test') {
-            steps {
-                dir('Amazon') {
-                    sh 'mvn test'
-                }
-            }
-        }
-
         stage('Build') {
             steps {
-                dir('Amazon') {
-                    sh 'mvn clean install'
-                }
+                sh 'mvn clean install'
             }
         }
     }
 
     post {
-        always {
-            echo " Pipeline completed."
-        }
         success {
-            echo " Pipeline executed successfully!"
+            sh '''
+curl -X POST -H 'Content-type: application/json' \
+--data '{"text": "SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER}"}' \
+https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
+'''
         }
         failure {
-            echo " Pipeline failed."
+            sh '''
+curl -X POST -H 'Content-type: application/json' \
+--data '{"text": "FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER}"}' \
+https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
+'''
         }
     }
 }
