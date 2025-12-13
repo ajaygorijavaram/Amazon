@@ -1,28 +1,30 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven3'
+    }
+
     stages {
+        stage('Clean') {
+            steps {
+                sh 'mvn clean'
+            }
+        }
+
         stage('Build') {
             steps {
-                sh 'mvn clean install'
+                sh 'mvn package'
             }
         }
     }
 
     post {
         success {
-            sh '''
-curl -X POST -H 'Content-type: application/json' \
---data '{"text": "SUCCESS: Job ${JOB_NAME} Build #${BUILD_NUMBER}"}' \
-https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
-'''
+            echo 'Pipeline completed successfully'
         }
         failure {
-            sh '''
-curl -X POST -H 'Content-type: application/json' \
---data '{"text": "FAILED: Job ${JOB_NAME} Build #${BUILD_NUMBER}"}' \
-https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
-'''
+            echo 'Pipeline failed'
         }
     }
 }
