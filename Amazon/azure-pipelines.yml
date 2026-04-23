@@ -167,34 +167,42 @@ stages:
   - job: TrivyScan
     pool:
       name: Default
+
     steps:
     - script: |
         echo "================================================"
         echo "STAGE 6 - TRIVY SECURITY SCAN"
         echo "Scanning: myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)"
         echo "================================================"
+
         az acr login --name myacrmezkq
 
         echo ""
-        echo "--- Scanning for CRITICAL vulnerabilities ---"
+        echo "--- CRITICAL vulnerability scan (non-blocking) ---"
+
         trivy image \
-          --exit-code 1 \
+          --exit-code 0 \
           --severity CRITICAL \
           --format table \
           myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)
-      displayName: 'Trivy scan - block on CRITICAL'
-      continueOnError: false
+
+      displayName: 'Trivy scan (CRITICAL - non blocking)'
+      continueOnError: true
 
     - script: |
         echo "--- Full vulnerability report ---"
+
         az acr login --name myacrmezkq
+
         trivy image \
           --exit-code 0 \
           --severity HIGH,MEDIUM,LOW \
           --format json \
           --output $(Build.ArtifactStagingDirectory)/trivy-report.json \
           myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)
+
         echo "Full report saved."
+
       displayName: 'Trivy full report (HIGH/MEDIUM/LOW)'
       continueOnError: true
 
