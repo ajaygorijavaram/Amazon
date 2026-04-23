@@ -14,7 +14,7 @@ variables:
   acrServiceConnection: 'amazon-acr-connection'
   k8sServiceConnection: 'amazon-aks-connection'
   sonarServiceConnection: 'amazon-sonar-connection'
-  sonarProjectKey: 'ajaygorijavaram_amazon-app'
+  sonarProjectKey: 'ajaygorijavaram_Amazon'
   sonarOrganization: 'ajaygorijavaram'
   appDir: '$(Build.SourcesDirectory)/Amazon'
 
@@ -79,7 +79,7 @@ stages:
         organization: 'ajaygorijavaram'
         scannerMode: 'Other'
         extraProperties: |
-          sonar.projectKey=ajaygorijavaram_amazon-app
+          sonar.projectKey=ajaygorijavaram_Amazon
           sonar.projectName=amazon-app
           sonar.sources=$(appDir)/Amazon-Web/src
           sonar.java.binaries=$(appDir)/Amazon-Web/target/classes
@@ -91,7 +91,7 @@ stages:
         mavenPomFile: '$(appDir)/pom.xml'
         goals: 'clean verify sonar:sonar'
         options: >
-          -Dsonar.projectKey=ajaygorijavaram_amazon-app
+          -Dsonar.projectKey=ajaygorijavaram_Amazon
           -Dsonar.organization=ajaygorijavaram
           -Dsonar.host.url=https://sonarcloud.io
         publishJUnitResults: true
