@@ -58,52 +58,55 @@ stages:
         echo "================================================"
       displayName: 'Show source info and verify tools'
 
+# ══════════════════════════════════════════# STAGE 2 — SONARCLOUD SCAN
 # ══════════════════════════════════════════
-# STAGE 2 — SONARCLOUD SCAN
-# ══════════════════════════════════════════
-- stage: SonarQube
+- stage: SonarCloud
   displayName: 'Stage 2 - SonarCloud Scan'
   dependsOn: FetchSource
   jobs:
   - job: SonarScan
     pool:
       name: Default
+
     steps:
     - checkout: self
       fetchDepth: 0
 
+    # 🔹 Prepare SonarCloud
     - task: SonarCloudPrepare@2
       displayName: 'Prepare SonarCloud'
       inputs:
         SonarCloud: 'amazon-sonar-connection'
         organization: 'ajaygorijavaram'
-        scannerMode: 'Other'
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'ajaygorijavaram_Amazon'
+        cliProjectName: 'amazon-app'
+        cliSources: '$(appDir)/Amazon-Web/src'
         extraProperties: |
-          sonar.projectKey=ajaygorijavaram_Amazon
-          sonar.projectName=amazon-app
-          sonar.sources=$(appDir)/Amazon-Web/src
           sonar.java.binaries=$(appDir)/Amazon-Web/target/classes
           sonar.exclusions=**/test/**,**/*.xml
 
+    # 🔹 Build + Scan
     - task: Maven@3
-      displayName: 'Maven build + SonarCloud scan'
+      displayName: 'Maven build'
       inputs:
         mavenPomFile: '$(appDir)/pom.xml'
-        goals: 'clean verify sonar:sonar'
-        options: >
-          -Dsonar.projectKey=ajaygorijavaram_Amazon
-          -Dsonar.organization=ajaygorijavaram
-          -Dsonar.host.url=https://sonarcloud.io
+        goals: 'clean verify'
         publishJUnitResults: true
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '1.17'
 
-    - task: SonarCloudPublish@1
-      displayName: 'Publish SonarCloud quality gate result'
+    # 🔹 Run analysis explicitly
+    - task: SonarCloudAnalyze@2
+      displayName: 'Run SonarCloud Analysis'
+
+    # 🔹 Publish results
+    - task: SonarCloudPublish@2
+      displayName: 'Publish Quality Gate Result'
       inputs:
         pollingTimeoutSec: '300'
-
 # ══════════════════════════════════════════
 # STAGE 3 — MAVEN BUILD + STORE ARTIFACT
 # ══════════════════════════════════════════
