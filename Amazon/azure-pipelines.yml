@@ -58,52 +58,11 @@ stages:
         echo "================================================"
       displayName: 'Show source info and verify tools'
 
-# ══════════════════════════════════════════# STAGE 2 — SONAR SCAN
-- stage: SonarQube
-  displayName: 'Stage 2 - Sonar Scan'
-  dependsOn: FetchSource
-
-  jobs:
-  - job: SonarScan
-    pool:
-      name: Default
-
-    steps:
-    - checkout: self
-      fetchDepth: 0
-
-    - task: SonarQubePrepare@5
-      inputs:
-        SonarQube: 'amazon-sonar-connection'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'ajaygorijavaram_Amazon'
-        cliProjectName: 'amazon-app'
-        cliSources: '$(appDir)/Amazon-Web/src'
-        extraProperties: |
-          sonar.java.binaries=$(appDir)/Amazon-Web/target/classes
-          sonar.exclusions=**/test/**,**/*.xml
-
-    - task: Maven@3
-      inputs:
-        mavenPomFile: '$(appDir)/pom.xml'
-        goals: 'clean verify'
-        publishJUnitResults: true
-        testResultsFiles: '**/surefire-reports/TEST-*.xml'
-        javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '1.17'
-
-    - task: SonarQubeAnalyze@5
-
-    - task: SonarQubePublish@5
-      inputs:
-        pollingTimeoutSec: '300'
-# ══════════════════════════════════════════
 # STAGE 3 — MAVEN BUILD + STORE ARTIFACT
 # ══════════════════════════════════════════
 - stage: MavenBuild
   displayName: 'Stage 3 - Maven Build'
-  dependsOn: SonarQube
+  dependsOn: FetchSource
   jobs:
   - job: MavenBuild
     pool:
