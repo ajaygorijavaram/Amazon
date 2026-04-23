@@ -72,7 +72,7 @@ stages:
     - checkout: self
       fetchDepth: 0
 
-    - task: SonarCloudPrepare@1
+    - task: SonarCloudPrepare@2
       displayName: 'Prepare SonarCloud'
       inputs:
         SonarCloud: 'amazon-sonar-connection'
