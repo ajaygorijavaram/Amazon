@@ -1,0 +1,323 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - Amazon/*
+
+variables:
+  acrName: 'myacrmezkq'
+  acrLoginServer: 'myacrmezkq.azurecr.io'
+  imageName: 'amazon-app'
+  imageTag: '$(Build.BuildId)'
+  acrServiceConnection: 'amazon-acr-connection'
+  k8sServiceConnection: 'amazon-aks-connection'
+  sonarServiceConnection: 'amazon-sonar-connection'
+  sonarProjectKey: 'ajaygorijavaram_amazon-app'
+  sonarOrganization: 'ajaygorijavaram'
+  appDir: '$(Build.SourcesDirectory)/Amazon'
+
+stages:
+
+# ══════════════════════════════════════════
+# STAGE 1 — FETCH SOURCE
+# ══════════════════════════════════════════
+- stage: FetchSource
+  displayName: 'Stage 1 - Fetch Source'
+  jobs:
+  - job: Checkout
+    pool:
+      name: Default
+    steps:
+    - checkout: self
+      fetchDepth: 0
+      displayName: 'Checkout from GitHub'
+
+    - script: |
+        echo "================================================"
+        echo "STAGE 1 - SOURCE FETCHED SUCCESSFULLY"
+        echo "================================================"
+        echo "Branch  : $(Build.SourceBranchName)"
+        echo "Commit  : $(Build.SourceVersion)"
+        echo "Build ID: $(Build.BuildId)"
+        echo ""
+        echo "Amazon folder contents:"
+        ls -la $(appDir)
+        echo ""
+        echo "Amazon-Web contents:"
+        ls -la $(appDir)/Amazon-Web/
+        echo "================================================"
+        echo "Tools available on this agent:"
+        java -version
+        mvn -version
+        docker --version
+        trivy --version
+        kubectl version --client
+        az version
+        echo "================================================"
+      displayName: 'Show source info and verify tools'
+
+# ══════════════════════════════════════════
+# STAGE 2 — SONARCLOUD SCAN
+# ══════════════════════════════════════════
+- stage: SonarQube
+  displayName: 'Stage 2 - SonarCloud Scan'
+  dependsOn: FetchSource
+  jobs:
+  - job: SonarScan
+    pool:
+      name: Default
+    steps:
+    - checkout: self
+      fetchDepth: 0
+
+    - task: SonarCloudPrepare@1
+      displayName: 'Prepare SonarCloud'
+      inputs:
+        SonarCloud: 'amazon-sonar-connection'
+        organization: 'ajaygorijavaram'
+        scannerMode: 'Other'
+        extraProperties: |
+          sonar.projectKey=ajaygorijavaram_amazon-app
+          sonar.projectName=amazon-app
+          sonar.sources=$(appDir)/Amazon-Web/src
+          sonar.java.binaries=$(appDir)/Amazon-Web/target/classes
+          sonar.exclusions=**/test/**,**/*.xml
+
+    - task: Maven@3
+      displayName: 'Maven build + SonarCloud scan'
+      inputs:
+        mavenPomFile: '$(appDir)/pom.xml'
+        goals: 'clean verify sonar:sonar'
+        options: >
+          -Dsonar.projectKey=ajaygorijavaram_amazon-app
+          -Dsonar.organization=ajaygorijavaram
+          -Dsonar.host.url=https://sonarcloud.io
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.17'
+
+    - task: SonarCloudPublish@1
+      displayName: 'Publish SonarCloud quality gate result'
+      inputs:
+        pollingTimeoutSec: '300'
+
+# ══════════════════════════════════════════
+# STAGE 3 — MAVEN BUILD + STORE ARTIFACT
+# ══════════════════════════════════════════
+- stage: MavenBuild
+  displayName: 'Stage 3 - Maven Build'
+  dependsOn: SonarQube
+  jobs:
+  - job: MavenBuild
+    pool:
+      name: Default
+    steps:
+    - checkout: self
+
+    - task: Maven@3
+      displayName: 'Maven clean package'
+      inputs:
+        mavenPomFile: '$(appDir)/pom.xml'
+        goals: 'clean package -DskipTests'
+        publishJUnitResults: false
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.17'
+
+    - script: |
+        echo "================================================"
+        echo "STAGE 3 - BUILD SUCCESSFUL"
+        echo "Built artifacts:"
+        find $(appDir) -name "*.war" -o -name "*.jar" | grep -v "/repository/"
+        echo "================================================"
+      displayName: 'Show built artifacts'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Save build as pipeline artifact'
+      inputs:
+        targetPath: '$(appDir)'
+        artifact: 'amazon-build'
+        publishLocation: 'pipeline'
+
+# ══════════════════════════════════════════
+# STAGE 4 — DOCKER BUILD
+# ══════════════════════════════════════════
+- stage: DockerBuild
+  displayName: 'Stage 4 - Docker Build'
+  dependsOn: MavenBuild
+  jobs:
+  - job: DockerBuild
+    pool:
+      name: Default
+    steps:
+    - checkout: self
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download build artifact'
+      inputs:
+        artifact: 'amazon-build'
+        path: '$(appDir)'
+
+    - script: |
+        echo "================================================"
+        echo "STAGE 4 - BUILDING DOCKER IMAGE"
+        echo "Image: myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)"
+        echo "================================================"
+        docker build \
+          -t myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId) \
+          -t myacrmezkq.azurecr.io/amazon-app:latest \
+          -f $(appDir)/Dockerfile \
+          $(appDir)
+        echo ""
+        echo "Image built successfully:"
+        docker images | grep amazon-app
+        echo "================================================"
+      displayName: 'Build Docker image'
+
+# ══════════════════════════════════════════
+# STAGE 5 — PUSH TO ACR
+# ══════════════════════════════════════════
+- stage: PushToACR
+  displayName: 'Stage 5 - Push to ACR'
+  dependsOn: DockerBuild
+  jobs:
+  - job: PushToACR
+    pool:
+      name: Default
+    steps:
+    - script: |
+        echo "================================================"
+        echo "STAGE 5 - PUSHING TO ACR"
+        echo "Registry: myacrmezkq.azurecr.io"
+        echo "================================================"
+        az acr login --name myacrmezkq
+        docker push myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)
+        docker push myacrmezkq.azurecr.io/amazon-app:latest
+        echo ""
+        echo "Push successful! Image in ACR:"
+        az acr repository show-tags \
+          --name myacrmezkq \
+          --repository amazon-app \
+          --output table
+        echo "================================================"
+      displayName: 'Login to ACR and push image'
+
+# ══════════════════════════════════════════
+# STAGE 6 — TRIVY SECURITY SCAN
+# ══════════════════════════════════════════
+- stage: TrivyScan
+  displayName: 'Stage 6 - Trivy Security Scan'
+  dependsOn: PushToACR
+  jobs:
+  - job: TrivyScan
+    pool:
+      name: Default
+    steps:
+    - script: |
+        echo "================================================"
+        echo "STAGE 6 - TRIVY SECURITY SCAN"
+        echo "Scanning: myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)"
+        echo "================================================"
+        az acr login --name myacrmezkq
+
+        echo ""
+        echo "--- Scanning for CRITICAL vulnerabilities ---"
+        trivy image \
+          --exit-code 1 \
+          --severity CRITICAL \
+          --format table \
+          myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)
+      displayName: 'Trivy scan - block on CRITICAL'
+      continueOnError: false
+
+    - script: |
+        echo "--- Full vulnerability report ---"
+        az acr login --name myacrmezkq
+        trivy image \
+          --exit-code 0 \
+          --severity HIGH,MEDIUM,LOW \
+          --format json \
+          --output $(Build.ArtifactStagingDirectory)/trivy-report.json \
+          myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)
+        echo "Full report saved."
+      displayName: 'Trivy full report (HIGH/MEDIUM/LOW)'
+      continueOnError: true
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Trivy report'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/trivy-report.json'
+        artifact: 'trivy-security-report'
+      condition: always()
+
+# ══════════════════════════════════════════
+# STAGE 7 — DEPLOY TO AKS
+# ══════════════════════════════════════════
+- stage: Deploy
+  displayName: 'Stage 7 - Deploy to AKS'
+  dependsOn: TrivyScan
+  jobs:
+  - deployment: DeployToAKS
+    pool:
+      name: Default
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - script: |
+              echo "================================================"
+              echo "STAGE 7 - DEPLOYING TO AKS"
+              echo "Cluster : aks-cluster"
+              echo "RG      : aks-rg"
+              echo "Image   : myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)"
+              echo "================================================"
+
+              az aks get-credentials \
+                --resource-group aks-rg \
+                --name aks-cluster \
+                --overwrite-existing
+
+              echo "Connected to AKS. Nodes:"
+              kubectl get nodes
+            displayName: 'Connect to aks-cluster'
+
+          - script: |
+              cp $(Build.SourcesDirectory)/Amazon/k8s/deployment.yaml /tmp/deployment.yaml
+              sed -i 's|IMAGE_PLACEHOLDER|myacrmezkq.azurecr.io/amazon-app:$(Build.BuildId)|g' \
+                /tmp/deployment.yaml
+              echo "Deployment YAML after image injection:"
+              cat /tmp/deployment.yaml
+            displayName: 'Inject image into deployment.yaml'
+
+          - script: |
+              kubectl apply -f /tmp/deployment.yaml
+              kubectl apply -f $(Build.SourcesDirectory)/Amazon/k8s/service.yaml
+              kubectl apply -f $(Build.SourcesDirectory)/Amazon/k8s/ingress.yaml
+              echo "Manifests applied."
+            displayName: 'Apply k8s manifests'
+
+          - script: |
+              echo "Waiting for rollout..."
+              kubectl rollout status deployment/amazon-deployment \
+                --timeout=5m
+              echo ""
+              echo "================================================"
+              echo "PODS STATUS:"
+              kubectl get pods -l app=amazon-app
+              echo ""
+              echo "SERVICE STATUS:"
+              kubectl get svc amazon-service
+              echo ""
+              echo "INGRESS STATUS:"
+              kubectl get ingress amazon-ingress
+              echo ""
+              echo "YOUR APP URL:"
+              echo "http://$(kubectl get ingress amazon-ingress \
+                -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+              echo "================================================"
+            displayName: 'Verify deployment and get app URL'
