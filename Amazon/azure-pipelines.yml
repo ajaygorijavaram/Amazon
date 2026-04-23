@@ -103,7 +103,7 @@ stages:
 # ══════════════════════════════════════════
 - stage: MavenBuild
   displayName: 'Stage 3 - Maven Build'
-  dependsOn: SonarCloud
+  dependsOn: SonarQube
   jobs:
   - job: MavenBuild
     pool:
