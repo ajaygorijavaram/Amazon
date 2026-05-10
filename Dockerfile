@@ -5,7 +5,7 @@ RUN mvn clean package -DskipTests
 
 FROM tomcat:10-jre17
 RUN rm -rf /usr/local/tomcat/webapps/*
-COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/ROOT.war
+COPY --from=builder /app/Amazon-Web/target/Amazon.war /usr/local/tomcat/webapps/ROOT.war
 EXPOSE 9090
 ENV JAVA_OPTS="-Dserver.port=9090"
 ENTRYPOINT ["catalina.sh", "run"]
