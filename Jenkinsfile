@@ -32,18 +32,18 @@ pipeline {
         }
 
        stage('Push WAR to JFrog') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'jfrog-creds',
-                    usernameVariable: 'JFROG_USER',
-                    passwordVariable: 'JFROG_PASS')]) {
-                    sh '''
-                        curl -u $JFROG_USER:$JFROG_PASS \
-                        -T Amazon-Web/target/*.war \
-                        "http://20.213.108.104:8082/artifactory/libs-release-local/java-app-$BUILD_NUMBER.war"
-                    '''
-                }
-            }
+    steps {
+        withCredentials([usernamePassword(credentialsId: 'jfrog-creds',
+            usernameVariable: 'JFROG_USER',
+            passwordVariable: 'JFROG_PASS')]) {
+            sh '''
+                curl -u $JFROG_USER:$JFROG_PASS \
+                -T Amazon-Web/target/Amazon.war \
+                "http://20.213.108.104:8082/artifactory/libs-release-local/java-app-$BUILD_NUMBER.war"
+            '''
         }
+    }
+}
         stage('Deploy to Minikube') {
             steps {
                 dir('Amazon') {
