@@ -10,12 +10,13 @@ pipeline {
 
     stages {
 
-        stage('Build & Test') {
-            steps {
-                echo 'Stage 1 - Build'
-                sh 'mvn clean package -DskipTests'
-            }
+       stage('Build & Test') {
+    steps {
+        dir('Amazon') {
+            sh 'mvn clean package -DskipTests'
         }
+    }
+}
 
         stage('Docker Build & Push') {
             steps {
