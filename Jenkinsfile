@@ -1,6 +1,6 @@
 pipeline {
 
-    agent none
+    agent any
 
     environment {
         APP_NAME   = 'java-app'
@@ -11,22 +11,15 @@ pipeline {
     stages {
 
         stage('Build & Test') {
-            agent any
             steps {
-                echo 'Stage 1 - Running on Docker container slave'
+                echo 'Stage 1 - Build'
                 sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Docker Build & Push') {
-            agent {
-                docker {
-                    image 'docker:24-cli'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
             steps {
-                echo 'Stage 2 - Using Docker image as agent'
+                echo 'Stage 2 - Docker image as agent'
                 sh """
                     docker build -t ${IMAGE} .
                     docker push ${IMAGE}
@@ -34,8 +27,7 @@ pipeline {
             }
         }
 
-        stage('Push JAR to JFrog') {
-            agent { label 'docker-slave' }
+        stage('Push WAR to JFrog') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jfrog-creds',
                     usernameVariable: 'JFROG_USER',
@@ -50,7 +42,6 @@ pipeline {
         }
 
         stage('Deploy to Minikube') {
-            agent { label 'built-in' }
             steps {
                 input message: 'Approve deployment to Minikube?', ok: 'Deploy'
                 withKubeConfig([credentialsId: 'minikube-kubeconfig']) {
@@ -64,7 +55,6 @@ pipeline {
         }
 
         stage('Verify & Cleanup') {
-            agent { label 'built-in' }
             steps {
                 withKubeConfig([credentialsId: 'minikube-kubeconfig']) {
                     sh 'kubectl get pods'
