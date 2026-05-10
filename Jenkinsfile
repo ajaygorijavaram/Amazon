@@ -11,7 +11,7 @@ pipeline {
     stages {
 
         stage('Build & Test') {
-            agent { label 'docker-slave' }
+            agent any
             steps {
                 echo 'Stage 1 - Running on Docker container slave'
                 sh 'mvn clean package -DskipTests'
