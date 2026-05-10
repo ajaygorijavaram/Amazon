@@ -37,8 +37,9 @@ pipeline {
             usernameVariable: 'JFROG_USER',
             passwordVariable: 'JFROG_PASS')]) {
             sh '''
+                find $WORKSPACE -name "*.war"
                 curl -u $JFROG_USER:$JFROG_PASS \
-                -T Amazon-Web/target/Amazon.war \
+                -T $WORKSPACE/Amazon/Amazon-Web/target/Amazon.war \
                 "http://20.213.108.104:8082/artifactory/libs-release-local/java-app-$BUILD_NUMBER.war"
             '''
         }
